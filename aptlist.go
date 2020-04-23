@@ -19,13 +19,12 @@ func main() {
 		lines []string
 
 		args = opts.Opts{
-			'd': false,
+			'l': false,
 			'f': "",
 			'h': false,
 			'v': false,
 		}
 	)
-
 
 	err := args.Parse()
 	if err != nil {
@@ -34,13 +33,13 @@ func main() {
 	}
 
 	var (
-		disk   = args['d'].(bool)
+		debug  = args['v'].(bool)
 		filter = args['f'].(string)
 		human  = args['h'].(bool)
-		debug  = args['v'].(bool)
+		disk   = !args['l'].(bool)
 	)
 
-	if ! debug {
+	if !debug {
 		log.SetFlags(0)
 		log.SetOutput(ioutil.Discard)
 	}
@@ -56,10 +55,18 @@ func main() {
 		if disk && human {
 			line = fields[2] + "\t" + fields[1]
 		} else if disk {
+
 			for fields[0][0] == '0' {
+				if len(fields[0]) == 0 {
+					fields[0] = "0"
+					break
+				}
+
 				fields[0] = fields[0][1:]
 			}
+
 			line = fields[0] + "\t" + fields[1]
+
 		} else {
 			line = fields[0]
 		}
@@ -82,9 +89,9 @@ Aptlist is a tool to show installed packages.
 	
 usage: %s [-dht] [-f pattern]
 
-	-d  shows disk usage
 	-f  filter pattern
 	-h  human readable size
+	-l  don't show disk usage
 	-r  reverse order
 
 `, program)
