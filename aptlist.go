@@ -55,13 +55,7 @@ func main() {
 		if disk && human {
 			line = fields[2] + "\t" + fields[1]
 		} else if disk {
-
-			for fields[0][0] == '0' {
-				if len(fields[0]) == 0 {
-					fields[0] = "0"
-					break
-				}
-
+			for len(fields[0]) != 0 && fields[0][0] == '0' {
 				fields[0] = fields[0][1:]
 			}
 
