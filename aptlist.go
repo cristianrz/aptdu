@@ -1,102 +1,97 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
+	"github.com/cristianrz/aptlist/packages"
+	"github.com/cristianrz/aptlist/print"
 	"github.com/cristianrz/opts"
+	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path"
-	"strings"
 )
 
+var program = path.Base(os.Args[0])
+
 func main() {
-	program := path.Base(os.Args[0])
 
-	f, err := os.Create("./aptlist.log")
-	exitIf(program, err)
+	log.SetFlags(0)
+	log.SetOutput(ioutil.Discard)
 
-	log.SetOutput(f)
+	//f, err := os.Create("./aptlist.log")
+	//if err != nil {
+	//	panic(err)
+	//}
+	//log.SetOutput(f)
 
-	args := make(opts.Opts)
-
-	args['d'] = false
-	args['f'] = ""
-	args['h'] = false
-	args['t'] = false
-
-	err = args.Parse()
-	exitIf(program, err)
-
-	for k, v := range args {
-		log.Println(string(k), v)
+	args := opts.Opts{
+		'd': false,
+		'f': "",
+		'h': false,
 	}
 
-	if args['d'] == false {
-		err = noDisk()
-		exitIf(program, err)
-	} else {
+	err := args.Parse()
 
-		m, err := disk()
-		exitIf(program, err)
+	disk := args['d'].(bool)
+	human := args['h'].(bool)
 
-		b := args['h'].(bool)
-		err = printSorted(m, b)
-		exitIf(program, err)
-	}
-
-	err = f.Close()
-	exitIf(program, err)
-
-}
-
-func exitIf(p string, e error) {
-	if e != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", p, e)
+	if err != nil {
+		_, err := fmt.Fprintf(os.Stderr, "%s: %s\n", program, err)
+		if err != nil {
+			panic(err)
+		}
+		usage()
 		os.Exit(1)
 	}
+
+	if disk {
+		lines, err := packages.Sizes(human)
+		if err != nil {
+			fatal(err)
+		}
+
+		for _, line := range lines {
+			for line[0] == '0' {
+				line = line[1:]
+			}
+
+			fmt.Println(line)
+		}
+	} else {
+		err := print.List()
+		if err != nil {
+			fatal(err)
+		}
+	}
+
+	//err = f.Close()
+	//if err != nil {
+	//	panic(err)
+	//}
 }
 
-func usage(p string) {
-	fmt.Fprintf(os.Stderr, `Aptlist is a tool to show installed packages.
-	
-	usage: %s [-dht] [-f pattern]
-	
-		-d  shows disk usage
-		-h  human readable size
-		-t  reverse order
-		-f  filter pattern
-	
-	`, p)
+func fatal(err error) {
+	_, err = fmt.Fprintf(os.Stderr, "%s: %s\n", program, err)
+	if err != nil {
+		panic(err)
+	}
 	os.Exit(1)
 }
 
-func noDisk() error {
-	cmd := exec.Command("dpkg", "--get-selections")
+func
+usage() {
+	_, err := fmt.Fprintf(os.Stderr, `
+Aptlist is a tool to show installed packages.
+	
+usage: %s [-dht] [-f pattern]
 
-	stdout, err := cmd.StdoutPipe()
+	-d  shows disk usage
+	-f  filter pattern
+	-h  human readable size
+	-r  reverse order
+
+`, program)
 	if err != nil {
-		return err
+		panic(err)
 	}
-
-	if err = cmd.Start(); err != nil {
-		return err
-	}
-
-	scanner := bufio.NewScanner(stdout)
-	for scanner.Scan() {
-		m := strings.Fields(scanner.Text())
-		fmt.Println(m[0])
-	}
-
-	if err = cmd.Wait(); err != nil {
-		return err
-	}
-
-	return nil
 }
-
-//func usage() {
-//
-//}
