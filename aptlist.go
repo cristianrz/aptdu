@@ -1,73 +1,71 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/cristianrz/aptlist/packages"
-	"github.com/cristianrz/aptlist/print"
 	"github.com/cristianrz/opts"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
+	"strings"
 )
 
 var program = path.Base(os.Args[0])
 
 func main() {
+	var (
+		lines []string
 
-	log.SetFlags(0)
-	log.SetOutput(ioutil.Discard)
+		args = opts.Opts{
+			'd': false,
+			'f': "",
+			'h': false,
+			'v': false,
+		}
+	)
 
-	//f, err := os.Create("./aptlist.log")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//log.SetOutput(f)
-
-	args := opts.Opts{
-		'd': false,
-		'f': "",
-		'h': false,
-	}
 
 	err := args.Parse()
-
-	disk := args['d'].(bool)
-	human := args['h'].(bool)
-
 	if err != nil {
-		_, err := fmt.Fprintf(os.Stderr, "%s: %s\n", program, err)
-		if err != nil {
-			panic(err)
-		}
-		usage()
-		os.Exit(1)
+		s := fmt.Sprintf("%s: %s\n%s\n", program, err, usage())
+		fatal(errors.New(s))
 	}
 
-	if disk {
-		lines, err := packages.Sizes(human)
-		if err != nil {
-			fatal(err)
-		}
+	var (
+		disk   = args['d'].(bool)
+		filter = args['f'].(string)
+		human  = args['h'].(bool)
+		debug  = args['v'].(bool)
+	)
 
-		for _, line := range lines {
-			for line[0] == '0' {
-				line = line[1:]
+	if ! debug {
+		log.SetFlags(0)
+		log.SetOutput(ioutil.Discard)
+	}
+
+	lines, err = packages.Sizes(filter, disk, human)
+	if err != nil {
+		fatal(err)
+	}
+
+	for _, line := range lines {
+		fields := strings.Split(line, ",")
+
+		if disk && human {
+			line = fields[2] + "\t" + fields[1]
+		} else if disk {
+			for fields[0][0] == '0' {
+				fields[0] = fields[0][1:]
 			}
+			line = fields[0] + "\t" + fields[1]
+		} else {
+			line = fields[0]
+		}
 
-			fmt.Println(line)
-		}
-	} else {
-		err := print.List()
-		if err != nil {
-			fatal(err)
-		}
+		fmt.Println(line)
 	}
-
-	//err = f.Close()
-	//if err != nil {
-	//	panic(err)
-	//}
 }
 
 func fatal(err error) {
@@ -78,9 +76,8 @@ func fatal(err error) {
 	os.Exit(1)
 }
 
-func
-usage() {
-	_, err := fmt.Fprintf(os.Stderr, `
+func usage() string {
+	s := fmt.Sprintf(`
 Aptlist is a tool to show installed packages.
 	
 usage: %s [-dht] [-f pattern]
@@ -91,7 +88,5 @@ usage: %s [-dht] [-f pattern]
 	-r  reverse order
 
 `, program)
-	if err != nil {
-		panic(err)
-	}
+	return s
 }
